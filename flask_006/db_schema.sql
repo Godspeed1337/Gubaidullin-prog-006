@@ -10,3 +10,10 @@ CREATE TABLE IF NOT EXISTS posts (
     content text NOT NULL,
     pub_date integer NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username text NOT NULL,
+    email text NOT NULL UNIQUE,
+    password text NOT NULL
+);

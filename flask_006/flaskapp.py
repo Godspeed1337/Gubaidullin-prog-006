@@ -1,10 +1,9 @@
 import datetime
 import os
 import sqlite3
-
-from flask import Flask, render_template, url_for, request, flash, get_flashed_messages, g, abort
-
+from flask import Flask, render_template, url_for, request, flash, get_flashed_messages, g, abort, redirect
 from flask_006.flask_database import FlaskDataBase
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DATABASE = 'flaskapp.db'
 DEBUG = True
@@ -35,6 +34,18 @@ def get_db():
     if not hasattr(g, 'link_db'):
         g.link_db = connect_db()
     return g.link_db
+
+
+@app.teardown_appcontext
+def close_db(error):
+    """Close database connection if it exists."""
+    if hasattr(g, 'link_db'):
+        g.link_db.close()
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return "<h1>Ooooops! This post does not exist!</h1>"
 
 
 url_menu_items = {
@@ -105,8 +116,9 @@ def post_content(post_id):
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
+    fdb = FlaskDataBase(get_db())
     if request.method == 'GET':
-        return render_template('login.html', menu_url=url_menu_items)
+        return render_template('login.html', menu_url=fdb.get_menu())
     elif request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -120,21 +132,43 @@ def login():
 
         print(request)
         print(get_flashed_messages(True))
-        return render_template('login.html', menu_url=url_menu_items)
+        return render_template('login.html', menu_url=fdb.get_menu())
     else:
         raise Exception(f'Method {request.method} not allowed')
 
 
-@app.errorhandler(404)
-def page_not_found(error):
-    return "<h1>Ooooops! This post does not exist!</h1>"
+@app.route('/register', methods=['POST', 'GET'])
+def register():
+    fdb = FlaskDataBase(get_db())
+    if request.method == 'GET':
+        return render_template('registration.html', menu_url=fdb.get_menu())
+    elif request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password1 = request.form.get('password1')
+        password2 = request.form.get('password2')
+        if name and email and password1 and password2:
+            if len(name) <= 4:
+                flash('Имя короткое', category='validation_error')
+            elif len(email) <= 4 and '@' not in email or '.' not in email:
+                flash('Некорректный email!', category='validation_error')
+            elif password2 != password1:
+                flash('Пароли не совпадают', category='validation_error')
+            else:
+                hash = generate_password_hash(password1)
+                res = fdb.register(name, email, hash)
+                if res:
+                    flash('Всё прошло успешно', category='success')
+                    return redirect(url_for('login'))
+                else:
+                    flash('Error', category='error')
+        else:
+            flash('Неверно заполнены поля', category='unfilled_error')
+    return render_template('registration.html', menu_url=fdb.get_menu())
 
 
-@app.teardown_appcontext
-def close_db(error):
-    """Close database connection if it exists."""
-    if hasattr(g, 'link_db'):
-        g.link_db.close()
+
+
 
 
 if __name__ == '__main__':
