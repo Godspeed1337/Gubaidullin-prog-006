@@ -168,6 +168,8 @@ def register():
                 flash('Некорректный email!', category='validation_error')
             elif password2 != password1:
                 flash('Пароли не совпадают', category='validation_error')
+            elif len(password1) <= 6 and not difficult_password(password1):
+                flash('Пароль не сложный!', category='validation_error')
             else:
                 hash = generate_password_hash(password1)
                 res, message = fdb.register(name, email, hash)
@@ -194,6 +196,25 @@ def logout():
 def setup_user():
     if 'user' not in session:
         session['user'] = {'username': 'anonymous'}
+
+def difficult_password(password):
+    res1 = False
+    for i in range(10):
+        if f'{i}' in password:
+            res1 = True
+            break
+    need_letters = ['@', '#', '$', '%', '^', '&', '*', '(', ')' ]
+    res2 = False
+    for i in need_letters:
+        if f'{i}' in password:
+            res2 = True
+            break
+    if res1 and res2:
+        return True
+    else:
+        return False
+
+
 
 
 
