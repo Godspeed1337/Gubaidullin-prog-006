@@ -1,7 +1,7 @@
 import datetime
 import os
 import sqlite3
-from flask import Flask, render_template, url_for, request, flash, get_flashed_messages, g, abort, redirect
+from flask import Flask, render_template, url_for, request, flash, get_flashed_messages, g, abort, redirect, session
 from flask_006.flask_database import FlaskDataBase
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -57,10 +57,11 @@ url_menu_items = {
 @app.route('/')
 def index():
     fdb = FlaskDataBase(get_db())
+
     return render_template(
         'index.html',
         menu_url=fdb.get_menu(),
-        posts=fdb.get_posts()
+        posts=fdb.get_posts(),
     )
 
 
@@ -116,6 +117,8 @@ def post_content(post_id):
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
+    if 'is_authorized' in session:
+        return redirect(url_for('index'))
     fdb = FlaskDataBase(get_db())
     if request.method == 'GET':
         return render_template('login.html', menu_url=fdb.get_menu())
@@ -130,8 +133,19 @@ def login():
         if not password:
             flash('Пароль не указан!', category='unfilled_error')
 
-        print(request)
-        print(get_flashed_messages(True))
+        res = fdb.find_user(email)
+
+        if res is None and check_password_hash(res['password'], password):
+            flash('Пользователь не найден', 'validation_error')
+        elif res is False:
+            flash('Error DB', category='error')
+        else:
+            session['user'] = {'username': res['username'],
+                               'email': res['email']
+                               }
+            session['is_authorized'] = True
+            return redirect(url_for('index'))
+
         return render_template('login.html', menu_url=fdb.get_menu())
     else:
         raise Exception(f'Method {request.method} not allowed')
@@ -156,16 +170,30 @@ def register():
                 flash('Пароли не совпадают', category='validation_error')
             else:
                 hash = generate_password_hash(password1)
-                res = fdb.register(name, email, hash)
+                res, message = fdb.register(name, email, hash)
                 if res:
                     flash('Всё прошло успешно', category='success')
                     return redirect(url_for('login'))
+                elif message is not None:
+                    flash(message, category='error')
                 else:
-                    flash('Error', category='error')
+                    flash('Error DB', category='error')
         else:
             flash('Неверно заполнены поля', category='unfilled_error')
     return render_template('registration.html', menu_url=fdb.get_menu())
 
+
+@app.route('/logout')
+def logout():
+    session.pop('user')
+    session.pop('is_authorized')
+    return redirect(url_for('index'))
+
+
+@app.before_request
+def setup_user():
+    if 'user' not in session:
+        session['user'] = {'username': 'anonymous'}
 
 
 

@@ -60,6 +60,10 @@ class FlaskDataBase:
 
     def register(self, name, email, hash):
         try:
+            self.__cur.execute(f"SELECT COUNT() as 'count' FROM users WHERE email == '{email}'")
+            res = self.__cur.fetchone()
+            if res['count'] > 0:
+                return False, 'Пользователь с таким с email уже существует'
             self.__cur.execute("INSERT INTO users VALUES (NULL, ?, ?, ? )",
                                (name, email, hash)
                                )
@@ -67,5 +71,20 @@ class FlaskDataBase:
 
         except sqlite3.Error as e:
             print('Error')
+            return False, 'Ошибка БД'
+        return True, None
+
+    def find_user(self, email):
+        try:
+            self.__cur.execute(f"SELECT * FROM users WHERE email == '{email}'")
+            res = self.__cur.fetchone()
+            if res:
+                return res
+            else:
+                return None
+        except sqlite3.Error as e:
             return False
-        return True
+
+
+
+

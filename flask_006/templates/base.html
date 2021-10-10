@@ -19,7 +19,10 @@
 <a href="{{ url_for(m.url) }}">{{ m.title }}</a>
 {% endfor %}
 
-<a href="{{ url_for('profile', username='sagit')}}">User Sagit</a>
+{% if 'is_authorized' in session %}
+<a href="{{ url_for('logout') }}">Logout</a>
+{% endif %}
+
 
 {% block content %}
 {% endblock %}
